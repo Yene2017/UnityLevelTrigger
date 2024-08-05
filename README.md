@@ -16,10 +16,11 @@
 
 - 通过 Container 的静态创建函数构造触发器形状
 
-- 通过 CreateLayer(int layerId, Container[] array, bool additive) 设定一组相同业务逻辑的触发器
+- 通过 CreateLayer(int layerId, Container[] array, bool excludeCast) 设定一组相同业务逻辑的触发器
 
-- 通过 RegisterListener(int layerId, Transform transform)  注册监听一组触发器
+- 通过 RegisterHandler(int layerId, Transform transform)  注册监听一组触发器
 
 - 通过 RegisterCallback(actionEnter, actionExit, actionChanged, actionLayerRemove, actionUnregister) 监听触发器系统更新形状和注册位置Overlap关系变化传递出的消息
+- 通过 Tick() 执行每帧的触发轮询
 
   

@@ -29,9 +29,9 @@ namespace LevelTrigger
                 return;
             }
             Handles.BeginGUI();
-            foreach (var e in layers)
+            foreach (var layer in layers)
             {
-                foreach (var c in e.Value.containers)
+                foreach (var c in layer.containers)
                 {
                     if (c == null) continue;
                     if (c.shape == null) continue;

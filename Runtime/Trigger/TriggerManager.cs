@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -8,10 +7,6 @@ namespace LevelTrigger
 {
     public partial class TriggerManager
     {
-        public const float UPDATE_INTERVAL = 0.5f;
-
-        readonly Dictionary<int, Layer> layers = new Dictionary<int, Layer>();
-
         public void Init()
         {
 #if UNITY_EDITOR
@@ -27,97 +22,35 @@ namespace LevelTrigger
 #endif
         }
 
-        public void CommonUpdate()
+        public void Tick()
         {
-            for (int i = 0; i < listeners.Count; ++i)
+            for (int i = 0; i < handlers.Count; ++i)
             {
-                var listener = listeners[i];
-                if (!layers.TryGetValue(listener.layerId, out var layer)) continue;
-                if (layer == null) continue;
-                if (layer.additive)
+                var handler = handlers[i];
+                if (!TryGetLayer(handler.layer, out var layer)) continue;
+                if (layer.excludeCast)
                 {
-                    InclusiveCase(listeners[i]);
+                    ExclusiveCast(handlers[i]);
                 }
                 else
                 {
-                    ExclusiveCast(listeners[i]);
+                    InclusiveCast(handlers[i]);
                 }
             }
-        }
-
-        public void CreateLayer(int layerId, Container[] array, bool additive)
-        {
-            layers.TryGetValue(layerId, out var layer);
-            if (layer != null)
-            {
-                Debug.LogWarning($"Layer List already exist! layerId = {layerId}");
-                return;
-            }
-            layer = new Layer();
-            layer.layerID = layerId;
-            layer.additive = additive;
-            layer.containers = System.Linq.Enumerable.ToList(array);
-            layers.Add(layerId, layer);
-        }
-
-        public void RemoveLayer(int layerId)
-        {
-            if (layers.TryGetValue(layerId, out var layer))
-            {
-                layers.Remove(layerId);
-            }
-            if (layer == null)
-            {
-                return;
-            }
-            foreach (var listener in listeners)
-            {
-                if (listener.layerId != layerId)
-                {
-                    continue;
-                }
-                RemoveLayer(listener);
-            }
-        }
-
-        public void RemoveAllLayer()
-        {
-            foreach (var listener in listeners)
-            {
-                RemoveLayer(listener);
-            }
-            layers.Clear();
-        }
-
-        private void RemoveLayer(Listener listener)
-        {
-            if (!layers.TryGetValue(listener.layerId, out var layer)) return;
-            if (layer == null) return;
-
-            foreach (var container in listener.casted)
-            {
-                actionExit?.Invoke(listener.transform, container);
-            }
-            if (listener.last != null)
-            {
-                actionChanged?.Invoke(listener.transform, null, listener.last);
-            }
-            listener.Clear();
-            actionLayerRemove?.Invoke(listener.transform, listener.layerId);
         }
 
         #region Cast
 
-        public void ForceCastLayer(int layerId, Transform transform)
+        public void ForceCastLayer(int id, Transform transform)
         {
             if (!transform) return;
-            if (!layers.TryGetValue(layerId, out var layer)) return;
+            if (!TryGetLayer(id, out var layer)) return;
 
             var position = transform.position;
-            foreach (var listener in listeners)
+            foreach (var handler in handlers)
             {
-                if (layerId != listener.layerId) continue;
-                if (transform != listener.transform) continue;
+                if (id != handler.layer) continue;
+                if (transform != handler.transform) continue;
 
                 foreach (var container in layer.containers)
                 {
@@ -126,80 +59,97 @@ namespace LevelTrigger
                     if (OverlapPoint(container, position))
                     {
                         actionEnter(transform, container);
-                        listener.Add(container);
+                        handler.Add(container);
                     }
-                    else if (listener.Contains(container))
+                    else if (handler.Contains(container))
                     {
                         actionExit(transform, container);
-                        listener.Remove(container);
+                        handler.Remove(container);
                     }
                 }
             }
         }
 
-        public int GetCastedContainerID(int layerId, Vector3 position)
+        public int CastLayerForID(int id, Vector3 position)
         {
-            if (!layers.TryGetValue(layerId, out var layer))return -1;
+            if (!TryGetLayer(id, out var layer)) return -1;
             var container = CastLayer(layer, position);
             if (container == null) return -2;
-            return container.containerID;
+            return container.id;
         }
 
-        void InclusiveCase(Listener listener)
+        public Container CastLayer(int id, Vector3 position)
         {
-            if (listener.transform == null) return;
-            if (!layers.TryGetValue(listener.layerId, out var layer)) return;
-            if (layer == null) return;
+            if (TryGetLayer(id, out var layer))
+            {
+                return CastLayer(layer, position);
+            }
+            else
+            {
+                return null;
+            }
+        }
 
-            Vector3 position = listener.transform.position;
+        public bool OverlapPoint(Container container, Vector3 position)
+        {
+            if (container == null) return false;
+            if (!container.Overlap(position)) return false;
+            return true;
+        }
+
+        void InclusiveCast(CastHandler handler)
+        {
+            if (handler.transform == null) return;
+            if (!TryGetLayer(handler.layer, out var layer)) return;
+
+            Vector3 position = handler.transform.position;
             for (int i = 0; i < layer.containers.Count; ++i)
             {
                 var container = layer.containers[i];
                 if (container == null) continue;
-                var casted = listener.Contains(container);
+                var casted = handler.Contains(container);
                 if (OverlapPoint(container, position))
                 {
                     if (!casted)
                     {
-                        listener.Add(container);
-                        actionEnter?.Invoke(listener.transform, container);
+                        handler.Add(container);
+                        actionEnter?.Invoke(handler.transform, container);
                     }
                 }
                 else if (casted)
                 {
-                    listener.Remove(container);
-                    actionExit?.Invoke(listener.transform, container);
+                    handler.Remove(container);
+                    actionExit?.Invoke(handler.transform, container);
                 }
             }
         }
 
-        void ExclusiveCast(Listener listener)
+        void ExclusiveCast(CastHandler handler)
         {
-            if (listener.transform == null) return;
-            if (!layers.TryGetValue(listener.layerId, out var layer)) return;
+            if (handler.transform == null) return;
+            if (!TryGetLayer(handler.layer, out var layer)) return;
 
-            var container = CastLayer(layer, listener.transform.position);
-            if (container != listener.last)
+            var container = CastLayer(layer, handler.transform.position);
+            if (container != handler.curt)
             {
-                var last = listener.last;
-                listener.last = container;
+                var last = handler.curt;
+                handler.curt = container;
                 if (last != null)
                 {
-                    listener.Remove(last);
-                    actionExit?.Invoke(listener.transform, last);
+                    handler.Remove(last);
+                    actionExit?.Invoke(handler.transform, last);
                 }
                 if (container != null)
                 {
-                    listener.Add(container);
-                    actionEnter?.Invoke(listener.transform, container);
+                    handler.Add(container);
+                    actionEnter?.Invoke(handler.transform, container);
                 }
-                actionChanged?.Invoke(listener.transform, container, last);
+                actionChanged?.Invoke(handler.transform, container, last);
             }
         }
 
         Container CastLayer(Layer layer, Vector3 position)
         {
-            if (layer == null) return null;
             for (int i = 0; i < layer.containers.Count; ++i)
             {
                 var container = layer.containers[i];
@@ -209,25 +159,6 @@ namespace LevelTrigger
                 }
             }
             return null;
-        }
-
-        public Container CastLayerById(int layerId, Vector3 position)
-        {
-            if (layers.TryGetValue(layerId, out var layer))
-            {
-                return CastLayer(layer, position);
-            }
-            else
-            {
-                return null;
-            }
-        }
-        
-        public bool OverlapPoint(Container container, Vector3 position)
-        {
-            if (container == null) return false;
-            if (!container.Overlap(position)) return false;
-            return true;
         }
 
 #endregion

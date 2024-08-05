@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -36,7 +35,9 @@ namespace LevelTrigger
 
         private void OnEnable()
         {
+#if UNITY_EDITOR
             if (!mesh) mesh = new Mesh();
+#endif
             var list = new List<Vector2>();
             for (var i = 0; i < circleMeshSplit; i++)
             {

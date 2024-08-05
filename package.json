@@ -1,0 +1,10 @@
+{
+  "name": "leveltrigger",
+  "displayName": "Level Trigger",
+  "version": "1.0.0",
+  "unity": "2019.2",
+  "keywords": ["Level", "Trigger"],
+  "description": "",
+  "dependencies": {
+  }
+}

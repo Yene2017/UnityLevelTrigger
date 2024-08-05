@@ -109,8 +109,7 @@ namespace LevelTrigger
                 var point = center + trigger.radius * (trigger.circleRandomRotate * s);
                 var size = HandleUtility.GetHandleSize(point) / 10;
                 EditorGUI.BeginChangeCheck();
-                var pos = Handles.FreeMoveHandle(point,
-                    Quaternion.identity, size, Vector3.zero, Handles.SphereHandleCap);
+                var pos = Handles.FreeMoveHandle(point, size, Vector3.zero, Handles.SphereHandleCap);
                 if (EditorGUI.EndChangeCheck())
                 {
                     Undo.RecordObject(trigger, trigger.name);
@@ -159,8 +158,7 @@ namespace LevelTrigger
                 v = EditorUtility.Merge(center, trigger.points[i]);
 
                 Handles.Label(v, i + "");
-                var nv = Handles.FreeMoveHandle(v, Quaternion.identity,
-                    size, Vector3.zero, Handles.CubeHandleCap);
+                var nv = Handles.FreeMoveHandle(v, size, Vector3.zero, Handles.CubeHandleCap);
                 if (nv != v)
                 {
                     Undo.RecordObject(trigger, trigger.name);

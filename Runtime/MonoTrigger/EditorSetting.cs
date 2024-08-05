@@ -44,6 +44,14 @@ namespace LevelTrigger
                 }
                 if (!setting)
                 {
+                    var guid = AssetDatabase.FindAssets("t:LevelTrigger.EditorSetting", null).FirstOrDefault();
+                    if (!string.IsNullOrEmpty(guid))
+                    {
+                        setting = AssetDatabase.LoadAssetAtPath<EditorSetting>(AssetDatabase.GUIDToAssetPath(guid));
+                    }
+                }
+                if (!setting)
+                {
                     setting = CreateInstance<EditorSetting>();
                     var SettingPath = UnityEditor.EditorUtility.SaveFilePanel(nameof(EditorSetting), "", nameof(EditorSetting), "asset");
                     if (!string.IsNullOrEmpty(SettingPath))
